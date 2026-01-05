@@ -1,8 +1,12 @@
-package com.example;
+package com.example.Services;
 
+import com.example.Model.Account;
+import com.example.Model.User;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -36,20 +40,14 @@ public class UserService {
                 .anyMatch(u -> name.equalsIgnoreCase(u.getName()));
     }
 
-    public User getById(Long userId) {
-        User user = users.get(userId);
-        if (user == null) {
-            throw new IllegalArgumentException("User with id " + userId + " is not found");
-        }
-        return user;
+    public Optional<User> getById(Long userId) {
+        return Optional.ofNullable(users.get(userId));
+    }
+
+    public List<User> getAllUsers() {
+        return users.values().stream().toList();
     }
 
 
-
-//    public Account createAccount(Long userId) {
-//        Account account = accountService.createAccount(userId);
-//        Long accountId = account.getAccountId();
-//
-//    }
 
 }

@@ -1,14 +1,12 @@
-package com.example;
+package com.example.Services;
 
+import com.example.Model.Account;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -134,5 +132,10 @@ public class AccountService {
         }
         accounts.remove(accountId);
     }
+
+    public Boolean existsById(Long id) {
+        return accounts.containsKey(id);
+    }
+
 
 }

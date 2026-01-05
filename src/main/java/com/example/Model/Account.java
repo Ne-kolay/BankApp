@@ -1,4 +1,4 @@
-package com.example;
+package com.example.Model;
 import java.math.BigDecimal;
 
 public class Account {
@@ -27,6 +27,15 @@ public class Account {
 
     public void setMoneyAmount(BigDecimal moneyAmount) {
         this.moneyAmount = moneyAmount;
+    }
+
+    @Override
+    public String toString() {
+        return "Account{" +
+                "accountId=" + accountId +
+                ", userId=" + userId +
+                ", moneyAmount=" + moneyAmount +
+                '}';
     }
 }
 

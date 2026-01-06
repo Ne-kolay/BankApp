@@ -1,12 +1,15 @@
-package com.example.Services;
+package savchenko.dev.Services;
 
-import com.example.Model.Account;
+import savchenko.dev.Model.Account;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.*;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -38,7 +41,6 @@ public class AccountService {
         accounts.put(accountId, account);
         return account;
     }
-
 
     public Optional<Account> getAccountById(Long id) {
         return Optional.ofNullable(accounts.get(id));
@@ -94,19 +96,17 @@ public class AccountService {
         if (!sourceAcc.getUserId().equals(destinationAcc.getUserId())) {
             fee = amount.multiply(transferCommission).setScale(2, RoundingMode.HALF_UP);
         }
-        BigDecimal totalWithdraw = amount.add(fee).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalAmount = amount.add(fee).setScale(2, RoundingMode.HALF_UP);
 
 
         //Check if source account has enough money
-        if (sourceAcc.getMoneyAmount().compareTo(totalWithdraw) < 0) {
+        if (sourceAcc.getMoneyAmount().compareTo(totalAmount) < 0) {
             throw new IllegalArgumentException("Not enough money on account with id: " + sourceId);
         }
 
-
         //Money transfer
-        withdraw(sourceId, totalWithdraw);
-        deposit(destinationId, amount);
-
+        decreaseBalance(sourceAcc, totalAmount);
+        increaseBalance(destinationAcc, amount);
     }
 
     public void deleteAccountById(Long accountId) {
@@ -137,5 +137,19 @@ public class AccountService {
         return accounts.containsKey(id);
     }
 
+    private void increaseBalance(Account account, BigDecimal amount) {
+        account.setMoneyAmount(
+                account.getMoneyAmount()
+                        .add(amount)
+                        .setScale(2, RoundingMode.HALF_UP)
+        );
+    }
 
+    private void decreaseBalance(Account account, BigDecimal amount) {
+        account.setMoneyAmount(
+                account.getMoneyAmount()
+                        .subtract(amount)
+                        .setScale(2, RoundingMode.HALF_UP)
+        );
+    }
 }

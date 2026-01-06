@@ -1,4 +1,4 @@
-package com.example.Console;
+package savchenko.dev.Console;
 
 public interface OperationCommand {
     void execute();

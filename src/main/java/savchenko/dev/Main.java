@@ -1,18 +1,16 @@
-package com.example;
+package savchenko.dev;
 
-import com.example.Console.OperationsConsoleListener;
+import savchenko.dev.Console.OperationsConsoleListener;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 public class Main {
     public static void main(String[] args) {
 
         AnnotationConfigApplicationContext context =
-                new AnnotationConfigApplicationContext("com.example");
+                new AnnotationConfigApplicationContext("savchenko.dev");
 
         OperationsConsoleListener operationsConsoleListener = context.getBean(OperationsConsoleListener.class);
-        operationsConsoleListener.run();
-
-
+        Thread consoleListener = new Thread(operationsConsoleListener);
+        consoleListener.start();
     }
-
 }

@@ -1,11 +1,11 @@
-package com.example.Console;
+package savchenko.dev.Console;
 
 import org.springframework.stereotype.Component;
-
-import java.util.EnumMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.List;
+import java.util.EnumMap;
+import java.util.Arrays;
 
 @Component
 public class OperationsConsoleListener implements Runnable {
@@ -24,15 +24,9 @@ public class OperationsConsoleListener implements Runnable {
     public void run() {
         while (true) {
             try {
-                System.out.print("===============================================\n\n" +
-                        "Please enter one of operation type:\n" +
-                        "-ACCOUNT_CREATE\n" +
-                        "-SHOW_ALL_USERS\n" +
-                        "-ACCOUNT_CLOSE\n" +
-                        "-ACCOUNT_WITHDRAW\n"+
-                        "-ACCOUNT_DEPOSIT\n" +
-                        "-ACCOUNT_TRANSFER\n" +
-                        "-USER_CREATE\n");
+                System.out.println("Please enter one of operation type:");
+                Arrays.stream(ConsoleOperationType.values())
+                        .forEach(System.out::println);
                 String input = scanner.nextLine();
 
                 ConsoleOperationType type = ConsoleOperationType.valueOf(input);
@@ -44,8 +38,7 @@ public class OperationsConsoleListener implements Runnable {
                 }
 
                 command.execute();
-                System.out.println("Operation completed successfully");
-                System.out.println();
+                System.out.println("Operation completed successfully\n");
 
             } catch (IllegalArgumentException e) {
                 System.out.println("Error: " + e.getMessage());

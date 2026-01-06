@@ -1,7 +1,7 @@
-package com.example.Services;
+package savchenko.dev.Services;
 
-import com.example.Model.Account;
-import com.example.Model.User;
+import savchenko.dev.Model.Account;
+import savchenko.dev.Model.User;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -47,7 +47,4 @@ public class UserService {
     public List<User> getAllUsers() {
         return users.values().stream().toList();
     }
-
-
-
 }

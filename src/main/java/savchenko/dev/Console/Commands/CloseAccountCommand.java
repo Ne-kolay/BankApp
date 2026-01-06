@@ -1,8 +1,8 @@
-package com.example.Console.Commands;
+package savchenko.dev.Console.Commands;
 
-import com.example.Console.ConsoleOperationType;
-import com.example.Console.OperationCommand;
-import com.example.Services.AccountService;
+import savchenko.dev.Console.ConsoleOperationType;
+import savchenko.dev.Console.OperationCommand;
+import savchenko.dev.Services.AccountService;
 import org.springframework.stereotype.Component;
 
 import java.util.Scanner;

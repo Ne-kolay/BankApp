@@ -1,4 +1,4 @@
-package com.example.Model;
+package savchenko.dev.Model;
 
 public class User {
 

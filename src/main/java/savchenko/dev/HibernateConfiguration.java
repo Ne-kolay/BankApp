@@ -1,8 +1,10 @@
 package savchenko.dev;
 
-import org.hibernate.*;
-import org.springframework.context.annotation.*;
-import savchenko.dev.Model.*;
+import org.hibernate.SessionFactory;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Bean;
+import savchenko.dev.Model.Account;
+import savchenko.dev.Model.User;
 
 @Configuration
 public class HibernateConfiguration {
@@ -17,8 +19,9 @@ public class HibernateConfiguration {
                 .setProperty("hibernate.connection.url", "jdbc:postgresql://localhost:5432/postgres")
                 .setProperty("hibernate.connection.username", "postgres")
                 .setProperty("hibernate.connection.password", "root")
-                .setProperty("hibernate.show_sql", "true")
-                .setProperty("hibernate.hbm2ddl.auto", "update");
+                .setProperty("hibernate.show_sql", "false")
+                .setProperty("hibernate.hbm2ddl.auto", "update")
+                .setProperty("hibernate.current_session_context_class", "thread");;
         return configuration.buildSessionFactory();
     }
 }

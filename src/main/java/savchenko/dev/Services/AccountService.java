@@ -1,155 +1,189 @@
 package savchenko.dev.Services;
 
-import savchenko.dev.Model.Account;
+import org.hibernate.SessionFactory;
 import org.springframework.beans.factory.annotation.Value;
+import savchenko.dev.TransactionHelper;
+import savchenko.dev.Model.Account;
+import savchenko.dev.Model.User;
 import org.springframework.stereotype.Component;
+import savchenko.dev.Repositories.UserRepository;
+import savchenko.dev.Repositories.AccountRepository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
+import java.util.Comparator;
 
 @Component
 public class AccountService {
 
-    private final Map<Long, Account> accounts = new ConcurrentHashMap<>();
-    private final AtomicLong idGenerator = new AtomicLong(1);
+    private final AccountRepository accountRepository;
+    private final UserRepository userRepository;
+    private final TransactionHelper transactionHelper;
+    private final SessionFactory sessionFactory;
     private final BigDecimal defaultAmount;
     private final BigDecimal transferCommission;
 
-    public AccountService(@Value("${account.default-amount}") BigDecimal defaultAmount,
+    public AccountService(AccountRepository accountRepository,
+                          UserRepository userRepository,
+                          TransactionHelper transactionHelper,
+                          SessionFactory sessionFactory,
+                          @Value("${account.default-amount}") BigDecimal defaultAmount,
                           @Value("${account.transfer-commission}") BigDecimal transferCommission) {
+        this.accountRepository = accountRepository;
+        this.userRepository = userRepository;
+        this.transactionHelper = transactionHelper;
+        this.sessionFactory = sessionFactory;
         this.defaultAmount = defaultAmount.setScale(2, RoundingMode.HALF_UP);
         this.transferCommission = transferCommission.setScale(2, RoundingMode.HALF_UP);
     }
 
+    //CREATE
     public Account createFirstAccount(Long userId) {
-        Long accountId = idGenerator.getAndIncrement();
-        Account account = new Account(userId, accountId, defaultAmount.setScale(2, RoundingMode.HALF_UP));
-        accounts.put(accountId, account);
-        return account;
+        return transactionHelper.executeInTransaction(session -> {
+            User user = userRepository.findById(userId, session)
+                    .orElseThrow(() -> new IllegalArgumentException("User with id " + userId + " does not exist"));
+            Account account = new Account(defaultAmount, user);
+            return accountRepository.save(account, session);
+        });
     }
 
     public Account createAccount(Long userId) {
-        Long accountId = idGenerator.getAndIncrement();
-        Account account = new Account(userId, accountId, BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
-        accounts.put(accountId, account);
-        return account;
+        return transactionHelper.executeInTransaction(session -> {
+            User user = userRepository.findById(userId, session)
+                    .orElseThrow(() -> new IllegalArgumentException("User with id " + userId + " does not exist"));
+            Account account = new Account(BigDecimal.ZERO, user);
+            return accountRepository.save(account, session);
+        });
     }
 
-    public Optional<Account> getAccountById(Long id) {
-        return Optional.ofNullable(accounts.get(id));
+    //READ
+    public Account getAccountById(Long id) {
+        return transactionHelper.executeInTransaction(session -> {
+            return accountRepository.findById(id, session)
+                    .orElseThrow(() -> new IllegalArgumentException("Account with id " + id + " does not exist"));
+        });
+    }
+
+    public boolean existsById(Long accountId) {
+        return transactionHelper.executeInTransaction(session -> {
+            return accountRepository.existsById(accountId, session);
+        });
     }
 
     public List<Account> getAllAccountsByUserId(Long userId) {
-        return accounts.values().stream()
-                .filter(acc -> acc.getUserId().equals(userId))
-                .sorted(Comparator.comparing(Account::getAccountId))
-                .collect(Collectors.toList());
+        return transactionHelper.executeInTransaction(session -> {
+            return accountRepository.findAllByUserId(userId, session);
+        });
     }
 
+    //UPDATE
     public void deposit(Long accountId, BigDecimal amount) {
-        amount = amount.setScale(2, RoundingMode.HALF_UP);
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+        BigDecimal normalizedAmount = amount.setScale(2, RoundingMode.HALF_UP);
+
+        if (normalizedAmount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Deposit amount must be positive");
         }
-        Account account = getAccountById(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Account with id " + accountId + " does not exist"));
-        account.setMoneyAmount(account.getMoneyAmount().add(amount).setScale(2, RoundingMode.HALF_UP));
+
+        transactionHelper.executeInTransaction(session -> {
+            Account account = accountRepository.findById(accountId, session)
+                    .orElseThrow(() -> new IllegalArgumentException("Account with id " + accountId + " does not exist"));
+
+            account.setMoneyAmount(account.getMoneyAmount().add(normalizedAmount)
+                    .setScale(2, RoundingMode.HALF_UP));
+            accountRepository.update(account, session);
+        });
     }
 
     public void withdraw(Long accountId, BigDecimal amount) {
-        amount = amount.setScale(2, RoundingMode.HALF_UP);
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+        BigDecimal normalizedAmount = amount.setScale(2, RoundingMode.HALF_UP);
+
+        if (normalizedAmount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Withdraw amount must be positive");
         }
-        Account account = getAccountById(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Account with id " + accountId + " does not exist"));
-        if (account.getMoneyAmount().compareTo(amount) < 0) {
-            throw new IllegalArgumentException("Not enough money on account with id: " + accountId);
-        }
-        account.setMoneyAmount(account.getMoneyAmount().subtract(amount).setScale(2, RoundingMode.HALF_UP));
+
+        transactionHelper.executeInTransaction(session -> {
+            Account account = accountRepository.findById(accountId, session)
+                    .orElseThrow(() -> new IllegalArgumentException("Account with id " + accountId + " does not exist"));
+
+            account.setMoneyAmount(account.getMoneyAmount().subtract(normalizedAmount)
+                    .setScale(2, RoundingMode.HALF_UP));
+            accountRepository.update(account, session);
+        });
     }
 
     public void transfer(Long sourceId, Long destinationId, BigDecimal amount) {
-        //Normalizing amount
-        amount = amount.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal normalizedAmount = amount.setScale(2, RoundingMode.HALF_UP);
 
-        //Check if transferring to same account
+        if (normalizedAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Transfer amount must be positive");
+        }
+
         if (sourceId.equals(destinationId)) {
             throw new IllegalArgumentException("Source and destination accounts must be different");
         }
 
-        //Getting source and destination accounts
-        Account sourceAcc = getAccountById(sourceId)
-                .orElseThrow(() -> new IllegalArgumentException("Account with id " + sourceId + " does not exist"));
-        Account destinationAcc = getAccountById(destinationId)
-                .orElseThrow(() -> new IllegalArgumentException("Account with id " + destinationId + " does not exist"));
+        transactionHelper.executeInTransaction(session -> {
+            Account sourceAcc = accountRepository.findById(sourceId, session)
+                    .orElseThrow(() -> new IllegalArgumentException("Account with id " + sourceId + " does not exist"));
+            Account destinationAcc = accountRepository.findById(destinationId, session)
+                    .orElseThrow(() -> new IllegalArgumentException("Account with id " + destinationId + " does not exist"));
 
-        //Calculating fee in case of transferring between different users
-        BigDecimal fee = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-        if (!sourceAcc.getUserId().equals(destinationAcc.getUserId())) {
-            fee = amount.multiply(transferCommission).setScale(2, RoundingMode.HALF_UP);
-        }
-        BigDecimal totalAmount = amount.add(fee).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal fee = BigDecimal.ZERO;
+            if (!sourceAcc.getUser().getId().equals(destinationAcc.getUser().getId())) {
+                fee = normalizedAmount.multiply(transferCommission)
+                        .setScale(2, RoundingMode.HALF_UP);
+            }
 
+            BigDecimal totalAmount = normalizedAmount.add(fee)
+                    .setScale(2, RoundingMode.HALF_UP);
 
-        //Check if source account has enough money
-        if (sourceAcc.getMoneyAmount().compareTo(totalAmount) < 0) {
-            throw new IllegalArgumentException("Not enough money on account with id: " + sourceId);
-        }
+            if (sourceAcc.getMoneyAmount().compareTo(totalAmount) < 0) {
+                throw new IllegalArgumentException("Not enough money on account with id: " + sourceId);
+            }
 
-        //Money transfer
-        decreaseBalance(sourceAcc, totalAmount);
-        increaseBalance(destinationAcc, amount);
+            decreaseBalance(sourceAcc, totalAmount);
+            increaseBalance(destinationAcc, normalizedAmount);
+
+            accountRepository.update(sourceAcc, session);
+            accountRepository.update(destinationAcc, session);
+        });
     }
 
+    //DELETE
     public void deleteAccountById(Long accountId) {
-        Account accountToClose = getAccountById(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Account with id " + accountId + " does not exist"));
-        Long userId = accountToClose.getUserId();
-        List<Account> userAccounts = getAllAccountsByUserId(userId);
+        transactionHelper.executeInTransaction(session -> {
+            Account accountToClose = accountRepository.findById(accountId, session)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Account with id " + accountId + " does not exist"));
 
-        if (userAccounts.size() == 1) {
-            throw new IllegalArgumentException("Cannot close the only account of user " + userId);
-        }
+            List<Account> userAccounts = accountRepository.findAllByUserId(
+                    accountToClose.getUser().getId(), session);
 
-        //Finding first account
-        Account firstAccount = userAccounts.stream()
-                .filter(acc -> !acc.getAccountId().equals(accountId))
-                .findFirst()
-                .orElseThrow();
-        BigDecimal remainingAmount = accountToClose.getMoneyAmount();
+            if (userAccounts.size() == 1) {
+                throw new IllegalArgumentException(
+                        "Cannot close the only account of user " + accountToClose.getUser().getId());
+            }
 
-        //deposit remaining amount to the first account
-        if (remainingAmount.compareTo(BigDecimal.ZERO) > 0) {
-            deposit(firstAccount.getAccountId(), remainingAmount);
-        }
-        accounts.remove(accountId);
+            Account firstAccount = userAccounts.stream()
+                    .filter(acc -> !acc.getId().equals(accountId))
+                    .min(Comparator.comparing(Account::getId))
+                    .orElseThrow();
+
+            BigDecimal remainingAmount = accountToClose.getMoneyAmount();
+            if (remainingAmount.compareTo(BigDecimal.ZERO) > 0) {
+                increaseBalance(firstAccount, remainingAmount);
+                accountRepository.update(firstAccount, session);
+            }
+            accountRepository.delete(accountToClose, session);
+        });
     }
 
-    public Boolean existsById(Long id) {
-        return accounts.containsKey(id);
-    }
-
+    //PRIVATE HELPER METHODS
     private void increaseBalance(Account account, BigDecimal amount) {
-        account.setMoneyAmount(
-                account.getMoneyAmount()
-                        .add(amount)
-                        .setScale(2, RoundingMode.HALF_UP)
-        );
+        account.setMoneyAmount( account.getMoneyAmount().add(amount).setScale(2, RoundingMode.HALF_UP));
     }
-
     private void decreaseBalance(Account account, BigDecimal amount) {
-        account.setMoneyAmount(
-                account.getMoneyAmount()
-                        .subtract(amount)
-                        .setScale(2, RoundingMode.HALF_UP)
-        );
+        account.setMoneyAmount(account.getMoneyAmount().subtract(amount).setScale(2, RoundingMode.HALF_UP));
     }
 }

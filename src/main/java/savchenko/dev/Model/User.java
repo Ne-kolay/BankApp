@@ -1,16 +1,36 @@
 package savchenko.dev.Model;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.Id;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.OneToMany;
+
+import java.util.List;
+import java.util.ArrayList;
+
+@Entity
+@Table(name = "users")
 public class User {
 
-    private final Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "name", unique = true, nullable = false)
     private String name;
 
-    public User(String name, Long id) {
-        this.name = name;
-        this.id = id;
-    }
+    @OneToMany(mappedBy = "user")
+    private List<Account> accounts = new ArrayList<>();
 
-    public long getId() {
+    public User(String name) {
+        this.name = name;
+    }
+    public User() { }
+
+    public Long getId() {
         return id;
     }
 

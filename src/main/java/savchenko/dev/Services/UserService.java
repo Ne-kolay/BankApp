@@ -1,50 +1,81 @@
 package savchenko.dev.Services;
 
-import savchenko.dev.Model.Account;
+import org.hibernate.SessionFactory;
+import org.springframework.stereotype.Service;
+import savchenko.dev.TransactionHelper;
 import savchenko.dev.Model.User;
-import org.springframework.stereotype.Component;
+import savchenko.dev.Repositories.UserRepository;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
-@Component
+
+@Service
 public class UserService {
 
-    private final Map<Long, User> users = new ConcurrentHashMap<>();
-    private final AtomicLong idGenerator = new AtomicLong(1);
     private final AccountService accountService;
+    private final SessionFactory sessionFactory;
+    private final TransactionHelper transactionHelper;
+    private final UserRepository userRepository;
 
-    public UserService(AccountService accountService) {
+    public UserService(AccountService accountService,
+                       SessionFactory sessionFactory,
+                       TransactionHelper transactionHelper, UserRepository userRepository) {
         this.accountService = accountService;
+        this.sessionFactory = sessionFactory;
+        this.transactionHelper = transactionHelper;
+        this.userRepository = userRepository;
     }
 
+
+    //CREATE
     public User createUser(String username) {
-        if (existsByName(username)) {
-            throw new IllegalArgumentException("User already exists");
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username must not be empty");
         }
-        //creating new user with auto-generated id
-        Long userId = idGenerator.getAndIncrement();
-        User user = new User(username, userId);
-        users.put(userId, user);
 
-        //creating first account with initial amount
-        Account account = accountService.createFirstAccount(userId);
-        return user;
+        return transactionHelper.executeInTransaction(session -> {
+            if (userRepository.existsByName(username, session)) {
+                throw new IllegalArgumentException("User with name " + username + " already exists");
+            }
+            User user = new User(username);
+            userRepository.saveUser(user, session);
+            accountService.createFirstAccount(user.getId());
+            return user;
+        });
     }
 
-    public Boolean existsByName(String name) {
-        return users.values().stream()
-                .anyMatch(u -> name.equalsIgnoreCase(u.getName()));
+    //READ
+    public boolean existsByName(String name) {
+        return transactionHelper.executeInTransaction(session -> {
+            return userRepository.existsByName(name, session);
+        });
     }
 
-    public Optional<User> getById(Long userId) {
-        return Optional.ofNullable(users.get(userId));
+    public User getById(Long userId) {
+        return transactionHelper.executeInTransaction(session -> {
+             return userRepository.findById(userId, session)
+                     .orElseThrow(() -> new IllegalArgumentException(
+                             "User with id " + userId + " does not exist"
+                     ));
+        });
+    }
+
+    public User getByName(String name) {
+        return transactionHelper.executeInTransaction(session -> {
+            return userRepository.findByName(name, session)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "User with name " + name + " does not exist"
+                    ));
+        });
     }
 
     public List<User> getAllUsers() {
-        return users.values().stream().toList();
+        return transactionHelper.executeInTransaction(session -> {
+            List<User> users = userRepository.findAll(session);
+            System.out.println("Found " + users.size() + " users");
+            return users;
+        });
     }
 }
+
+

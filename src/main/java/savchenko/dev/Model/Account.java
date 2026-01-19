@@ -1,24 +1,39 @@
 package savchenko.dev.Model;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+import jakarta.persistence.Id;
+import jakarta.persistence.Column;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.JoinColumn;
 import java.math.BigDecimal;
 
+@Entity
+@Table(name = "accounts")
 public class Account {
 
-    private final Long accountId;
-    private final Long userId;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "money_amount")
     private BigDecimal moneyAmount;
 
-    public Account(Long userId, Long accountId, BigDecimal initialAmount) {
-        this.accountId = accountId;
-        this.userId = userId;
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    public Account(BigDecimal initialAmount, User user) {
         this.moneyAmount = initialAmount;
+        this.user = user;
     }
 
-    public Long getAccountId() {
-        return accountId;
-    }
+    public Account() { }
 
-    public Long getUserId() {
-        return userId;
+    public Long getId() {
+        return id;
     }
 
     public BigDecimal getMoneyAmount() {
@@ -29,12 +44,16 @@ public class Account {
         this.moneyAmount = moneyAmount;
     }
 
+    public User getUser() {
+        return user;
+    }
+
     @Override
     public String toString() {
         return "Account{" +
-                "accountId=" + accountId +
-                ", userId=" + userId +
+                "id=" + id +
                 ", moneyAmount=" + moneyAmount +
+                ", user=" + user +
                 '}';
     }
 }

@@ -26,11 +26,10 @@ public class CreateAccountCommand implements OperationCommand {
         System.out.print("Enter the user id for which to create an account: ");
         Long userId = Long.parseLong(scanner.nextLine());
 
-        userService.getById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: id=" + userId));
+        userService.getById(userId);
 
         Account account = accountService.createAccount(userId);
-        System.out.println("New account created with ID: " + account.getAccountId());
+        System.out.println("New account created with ID: " + account.getId());
     }
 
     @Override
